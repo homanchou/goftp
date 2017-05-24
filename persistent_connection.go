@@ -433,6 +433,7 @@ func (pconn *persistentConn) prepareDataConn() (func() (net.Conn, error), error)
 
 func (pconn *persistentConn) listenActive() (*net.TCPListener, error) {
 	listenAddr := pconn.config.ActiveListenAddr
+	activeListenHost := ""
 
 	localAddr := pconn.controlConn.LocalAddr().String()
 	localHost, localPort, err := net.SplitHostPort(localAddr)
@@ -446,6 +447,9 @@ func (pconn *persistentConn) listenActive() (*net.TCPListener, error) {
 		listenAddr = net.JoinHostPort(listenAddr[0:len(listenAddr)-1], localPort)
 	} else if listenAddr[0] == ':' {
 		listenAddr = net.JoinHostPort(localHost, listenAddr[1:])
+	} else {
+		listenAddr = net.JoinHostPort(localHost, "0")
+		activeListenHost, _, _ = net.SplitHostPort(pconn.config.ActiveListenAddr)
 	}
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp", listenAddr)
@@ -469,7 +473,10 @@ func (pconn *persistentConn) listenActive() (*net.TCPListener, error) {
 		return nil, ftpError{err: fmt.Errorf("error parsing listen port: %s (%s)", err, listenPortStr)}
 	}
 
-	hostIP := net.ParseIP(listenHost)
+	if activeListenHost == "" {
+		activeListenHost = listenHost
+	}
+	hostIP := net.ParseIP(activeListenHost)
 	if hostIP == nil {
 		return nil, ftpError{err: fmt.Errorf("failed parsing host IP %s", listenHost)}
 	}
